@@ -14,7 +14,7 @@ REM***
 REM***
 REM***    Author        :   Brett Brandstrom Sr.Oracle Developer/Analysist
 REM***                      Brandstrom Consulting Services
-REM***
+REM***                      Brett.Brandstrom@gmail.com
 REM***
 REM********************************************************************************************************************
 set serveroutput on size 1000000
@@ -75,10 +75,10 @@ execute immediate V_CREATE_IF;
   end;
 /
 
-@E:\sps_code\sps_prod_code\ITEM_INFO_UTILITIES.pks
-@E:\sps_code\sps_prod_code\ITEM_INFO_UTILITIES.pkb
-@E:\sps_code\sps_prod_code\ITEM_INFO_CONVERSION.pks
-@E:\sps_code\sps_prod_code\ITEM_INFO_CONVERSION.pkb
+@ITEM_INFO_UTILITIES.pks
+@ITEM_INFO_UTILITIES.pkb
+@ITEM_INFO_CONVERSION.pks
+@ITEM_INFO_CONVERSION.pkb
   
   declare 
   

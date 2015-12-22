@@ -10,7 +10,7 @@ REM***
 REM***
 REM***    Author        :   Brett Brandstrom Sr.Oracle Developer/Analysist
 REM***                      Brandstrom Consulting Services
-REM***
+REM***                      Brett.Brandstrom@gmail.com
 REM***
 REM********************************************************************************************************************
 create or replace PACKAGE BODY ITEM_INFO_UTILITIES 
@@ -167,7 +167,7 @@ begin
 
 
   
-v_large_iF_beg  := q'{create or replace TRIGGER item_info_instead_trg222 }'||chr(10);
+v_large_iF_beg  := q'{create or replace TRIGGER item_info_instead_trg }'||chr(10);
 V_large_if_beg := v_large_if_beg ||q'{INSTEAD OF INSERT OR UPDATE ON ITEM_INFO}'||CHR(10);
 V_large_if_beg := v_large_if_beg ||q'{for each row declare}'||CHR(10);
 V_large_if_beg := v_large_if_beg ||q'{             v_item_iteminfoid      item_info_detail.iteminfoid%type :=NULL;}'||chr(10);

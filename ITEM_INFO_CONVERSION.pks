@@ -9,7 +9,7 @@ REM***
 REM***
 REM***    Author        :   Brett Brandstrom Sr.Oracle Developer/Analysist
 REM***                      Brandstrom Consulting Services
-REM***
+REM***                      Brett.Brandstrom@gmail.com
 REM***
 REM********************************************************************************************************************
 Create or replace package ITEM_INFO_CONVERSION as

@@ -9,7 +9,7 @@ REM***
 REM***
 REM***    Author        :   Brett Brandstrom Sr.Oracle Developer/Analysist
 REM***                      Brandstrom Consulting Services
-REM***
+REM***                      Brett.Brandstrom@gmail.com
 REM***
 REM********************************************************************************************************************
 Create or replace package body ITEM_INFO_CONVERSION as
@@ -33,7 +33,7 @@ V_END_TIME  TIMESTAMP;
 
 cursor c_main is SELECT * FROM item_info;     --iteminfoid not in (select iteminfoid from item_info_master);
 
- -- cursor c_main is select * from item_info_orig_12102015 where  iteminfoid = 16800611 ;
+
 
 BEGIN
 SELECT LOCALTIMESTAMP INTO V_START_TIME FROM DUAL;
@@ -43,7 +43,7 @@ SELECT LOCALTIMESTAMP INTO V_START_TIME FROM DUAL;
          
            item_info_tab.delete;
            item_master_tab.DELETE;
-			item_detail_tab.DELETE;              
+		   item_detail_tab.DELETE;              
        
         
      OPEN c_main;
@@ -53,7 +53,7 @@ SELECT LOCALTIMESTAMP INTO V_START_TIME FROM DUAL;
             
         if item_info_tab.count > 0 then          
 	             FOR indx IN item_info_tab.first .. item_info_tab.last LOOP 
-                v_loop_cnt := v_loop_cnt+1;
+                 v_loop_cnt := v_loop_cnt+1;
 				                       v_masterTab_idx := item_master_tab.count+1;
                                        item_master_tab(v_masterTab_idx).ITEMINFOID      := item_info_tab(indx).ITEMINFOID ;
                                        item_master_tab(v_masterTab_idx).COMPANYID       := item_info_tab(indx).COMPANYID;
@@ -75,14 +75,14 @@ SELECT LOCALTIMESTAMP INTO V_START_TIME FROM DUAL;
              
                            if mod(item_master_tab.count,20000) = 0 then
                                   CREATE_ITEM_HEADER;
-                                  item_master_tab.DELETE;
+                                  item_master_tab.DELETE;     -- clear data from collection after writing to the table
 			                     end if;
                    
-                           Item_Info_Validation_Proc(indx);-- create the child attribute record ba  
+                           Item_Info_Validation_Proc(indx); -- create the item_detail_tab record   
                        
 			             if mod(item_detail_tab.count,20000) = 0 then
                             create_item_info_child;
-                            item_detail_tab.DELETE;
+                            item_detail_tab.DELETE;       -- clear data from collection after writing to the table
 			             end if;
                 
                 if mod(v_loop_cnt,500000) = 0 then
@@ -97,8 +97,8 @@ SELECT LOCALTIMESTAMP INTO V_START_TIME FROM DUAL;
    END LOOP;
 
    CLOSE c_main;
-   
-     CREATE_ITEM_HEADER;                            
+                                       -- write any remaining data to the tables 
+     CREATE_ITEM_HEADER;                              
      create_item_info_child;
      commit;
     
@@ -109,7 +109,7 @@ SELECT LOCALTIMESTAMP INTO V_START_TIME FROM DUAL;
         DBMS_OUTPUT.PUT_LINE('END TIME   '||V_END_TIME);
  
  
- 
+ -- try to free any memory by clearing PL/SQL table in memory
    item_info_tab := item_info_tab_null;
    item_detail_tab.DELETE;
    item_master_tab.DELETE;
@@ -134,7 +134,7 @@ PROCEDURE CREATE_ITEM_INFO_CHILD
 AS
 
 BEGIN
-        if item_detail_tab.count > 0 then
+        if item_detail_tab.count > 0 then         
 
               forall i in item_detail_tab.first .. item_detail_tab.last 
                                          INSERT INTO ITEM_INFO_DETAIL 
@@ -213,29 +213,29 @@ EXCEPTION
  RAISE;
 END;
 
-function GET_ITEM_ATTRIBUTE_ID (i_item_attribute_name in item_attribute_master.item_attribute_name%type)
+FUNCTION GET_ITEM_ATTRIBUTE_ID (i_item_attribute_name in item_attribute_master.item_attribute_name%type)
  
-   return number
-   is 
+   RETURN number
+IS 
 
             o_item_attribute_id item_attribute_master.ITEM_ATTRIBUTE_ID%type;
 
-   begin
+BEGIN
    
-             begin
+             BEGIN
                  select ITEM_ATTRIBUTE_ID into o_item_attribute_id  from item_attribute_master where item_attribute_name = upper(i_item_attribute_name);
-             exception 
+             EXCEPTION 
                  when no_data_found then
                       o_item_attribute_id := 0 ;
-             end;
+             END;
 
-    return(o_item_attribute_id);
+    RETURN(o_item_attribute_id);
 
-   end GET_ITEM_ATTRIBUTE_ID; 
+END GET_ITEM_ATTRIBUTE_ID; 
 
 
-FUNCTION VALUE_DOES_EXISTS (I_ITEMINFOID IN ITEM_INFO_DETAIL.ITEMINFOID%TYPE , 
-                            I_ITEM_ATTRIBUTE_ID IN ITEM_INFO_DETAIL.ITEM_ATTRIBUTE_ID%TYPE)
+FUNCTION VALUE_DOES_EXISTS (i_iteminfoid IN ITEM_INFO_DETAIL.ITEMINFOID%TYPE , 
+                            i_item_attribute_id IN ITEM_INFO_DETAIL.ITEM_ATTRIBUTE_ID%TYPE)
 RETURN NUMBER
 
 IS
@@ -245,136 +245,122 @@ O_RETURN_VALUE   NUMBER;
 BEGIN
     SELECT COUNT(*) INTO O_RETURN_VALUE 
 	FROM ITEM_INFO_DETAIL 
-	WHERE ITEMINFOID = I_ITEMINFOID  
-	AND ITEM_ATTRIBUTE_ID = I_ITEM_ATTRIBUTE_ID; 
+	WHERE ITEMINFOID = i_iteminfoid  
+	AND ITEM_ATTRIBUTE_ID = i_item_attribute_id; 
 
 	RETURN(O_RETURN_VALUE);
 	
 END VALUE_DOES_EXISTS;
 
-procedure UPDATE_ITEM_INFO_DETAIL(I_ITEMINFOID IN ITEM_INFO_MASTER.ITEMINFOID%TYPE,I_rowAuditUID in number) 
+PROCEDURE UPDATE_ITEM_INFO_DETAIL(i_iteminfoid IN ITEM_INFO_MASTER.ITEMINFOID%TYPE,I_rowAuditUID in number) 
 as
 
 
-  V_UPD_ST_beg   VARCHAR2(32000);
-  V_UPD_ST_SET   VARCHAR2(32000);
-  V_UPD_ST_WHERE VARCHAR2(32000);
-  V_UPD_ST_AND   VARCHAR2(32000);
-  V_UPD_HDR_BDY  VARCHAR2(32000);
-  V_UPD_HEADER   VARCHAR2(32000);
-  V_UPD_HDR_WHERE  VARCHAR2(32000);
-  V_HDR_UPD      NUMBER :=0;
-  v_item_attribute_id number ;
-  v_companyid_pos     number;
-  V_UPD_COMP_WHERE    VARCHAR2(32000):= NULL;
-  V_ITEMINFOID        NUMBER;
-  v_iteminfoid_pos    number;
-  V_ITEM_AND_POS      NUMBER;
-  V_LENGTH_TO_PULL    NUMBER;
-  SQL_TEXT VARCHAR2(32000);
 
-  V_SET_POS      NUMBER :=0;
-  V_WHERE_POS    NUMBER :=0;
-  V_SUB_LEN      NUMBER :=0;
-  V_COLUMNS      VARCHAR2(32000);
-  V_WHERE_CLAUSE VARCHAR2(32000);
-  V_POS1         NUMBER := 1;
-  V_POS2         NUMBER :=1;
-  V_POS3         NUMBER :=0;
-  V_COMMA_POS    NUMBER :=0;
-  INDEX_CNT      NUMBER :=0;
-  v_end_loop     BOOLEAN := FALSE;  
-  V_COMPANYID    NUMBER;
-  V_LOC_EQ       NUMBER;
-  v_stmt         varchar2(4000);
-  v_column_cnt    number:=0;
-  
+  v_upd_st_set        VARCHAR2(32000);
+  v_upd_st_and        VARCHAR2(32000);
+  v_upd_hdr_bdy       VARCHAR2(32000);
+  v_upd_header        VARCHAR2(32000);
+  v_hdr_upd           NUMBER :=0;
+  v_item_attribute_id NUMBER ;
+  v_iteminfoid        NUMBER;
+  v_length_to_pull    NUMBER;
+  sql_text            VARCHAR2(32000);
+  v_set_pos           NUMBER :=0;
+  v_where_pos         NUMBER :=0;
+  v_columns           VARCHAR2(32000);
+  v_pos1              NUMBER := 1;
+  v_pos2              NUMBER :=1;
+  v_comma_pos         NUMBER :=0;
+  index_cnt           NUMBER :=0;
+  v_end_loop          BOOLEAN := FALSE;  
+  v_stmt              VARCHAR2(4000);
   
   CURSOR C_MAIN
   IS
-    SELECT SQL_FULLTEXT
+    SELECT sql_fulltext
     FROM v$sql A
-    WHERE upper(SQL_FULLTEXT) LIKE '%ITEM_INFO %'
+    WHERE upper(sql_fulltext) LIKE '%ITEM_INFO %'
     AND sql_text NOT LIKE '%v$sql%'
     AND command_type in  (6,47)
-    ORDER BY LAST_ACTIVE_TIME DESC;
+    ORDER BY last_active_time DESC;
   
 BEGIN
 
 
 
   OPEN C_MAIN ;
-  FETCH C_MAIN INTO SQL_TEXT;
+  FETCH C_MAIN INTO sql_text;
   CLOSE C_MAIN;
   
-  V_SET_POS          := (INSTR(UPPER(SQL_TEXT),'SET')  +4);                  -- FIND THE LOCATION OF THE SET CLUASE
-  V_WHERE_POS        := (INSTR(UPPER(SQL_TEXT),'WHERE'));                  -- FIND THE LOCATION OF THE WHERE CLUASE
-  V_LENGTH_TO_PULL   := V_WHERE_POS - V_SET_POS;
+  v_set_pos          := (INSTR(UPPER(sql_text),'SET')  +4);                  -- FIND THE LOCATION OF THE SET CLUASE
+  v_where_pos        := (INSTR(UPPER(sql_text),'WHERE'));                  -- FIND THE LOCATION OF THE WHERE CLUASE
+  v_length_to_pull   := v_where_pos - v_set_pos;
 
-      V_COLUMNS   := SUBSTR(SQL_TEXT,V_SET_POS,V_LENGTH_TO_PULL);     -- GET THE COLUMNS BETWEEN SET AND WHERE
+      v_columns   := SUBSTR(sql_text,v_set_pos,v_length_to_pull);     -- GET THE COLUMNS BETWEEN SET AND WHERE
 
       V_POS1      := 1;
    WHILE NOT v_end_loop   LOOP
 
-     INDEX_CNT   := INDEX_CNT +1;
-     V_POS2      := (INSTR(V_COLUMNS,'=',V_POS1)); 
+     index_cnt   := index_cnt +1;
+     V_POS2      := (INSTR(v_columns,'=',v_pos1)); 
 
-     V_LENGTH_TO_PULL   :=  V_POS2 - V_POS1      ;
-     V_COLUMNS_TAB(INDEX_CNT).u_column_name  := trim(SUBSTR(V_COLUMNS,V_POS1,V_LENGTH_TO_PULL));
+     v_length_to_pull   :=  V_POS2 - V_POS1      ;
+     v_columns_tab(index_cnt).u_column_name  := trim(SUBSTR(v_columns,v_pos1,v_length_to_pull));
      
-     V_COMMA_POS := instr(V_COLUMNS,',',V_COMMA_POS+1);
+     v_comma_pos := instr(v_columns,',',v_comma_pos+1);
 
-     IF V_COMMA_POS = 0 THEN
-        V_COMMA_POS := LENGTH(V_COLUMNS);
+     IF v_comma_pos = 0 THEN
+        v_comma_pos := LENGTH(v_columns);
         v_end_loop := TRUE;  
      END IF;
-      V_POS1 := V_COMMA_POS +1;
+      v_pos1 := v_comma_pos +1;
 
   END LOOP;
   
     v_stmt := 'BEGIN '||chr(13);
-   FOR I IN V_COLUMNS_TAB.FIRST .. V_COLUMNS_TAB.LAST LOOP
-	          V_STMT :=  V_STMT||q'{ item_info_conversion.V_COLUMNS_TAB(}'||I||q'{).u_column_value :=  Item_info_CONVERSION.item_info_tab(1).}'||V_COLUMNS_TAB(I).u_COLUMN_name||';'||chr(13);    
+   FOR I IN v_columns_tab.FIRST .. v_columns_tab.LAST LOOP
+	          v_stmt :=  v_stmt||q'{ item_info_conversion.V_COLUMNS_TAB(}'||I||q'{).u_column_value :=  Item_info_CONVERSION.item_info_tab(1).}'||V_COLUMNS_TAB(I).u_COLUMN_name||';'||chr(13);    
    END LOOP;  
-    v_stmt :=  V_STMT||' end;';
-    execute immediate V_STMT;
+    v_stmt :=  v_stmt||' end;';
+    execute immediate v_stmt;
 
-           V_ITEMINFOID := i_iteminfoid;
+           v_iteminfoid := i_iteminfoid;
 
-  --     dbms_output.put_line(V_ITEMINFOID);  
+  --     dbms_output.put_line(v_iteminfoid);  
 
-          FOR I IN V_COLUMNS_TAB.FIRST .. V_COLUMNS_TAB.LAST LOOP
-              IF upper(V_COLUMNS_TAB(I).u_column_name) IN ('ISXREF','ISVALID','ROW_VERSION','HASHCOL','MODIFIED_BY','MODIFIED_DATE','MODIFIED_BY_SVC','ITEMTIMESTAMP' ,'CREATEDDATE','UPC','GTIN','EAN','PARTNUMBER','ISBN') THEN
-                 V_HDR_UPD := V_HDR_UPD +1;
-                 V_UPD_HDR_BDY := V_UPD_HDR_BDY ||V_COLUMNS_TAB(I).u_column_NAME||q'{ = '}'||V_COLUMNS_TAB(I).u_column_value||q'{',}';
+          FOR I IN v_columns_tab.FIRST .. v_columns_tab.LAST LOOP
+              IF upper(v_columns_tab(I).u_column_name) IN ('ISXREF','ISVALID','ROW_VERSION','HASHCOL','MODIFIED_BY','MODIFIED_DATE','MODIFIED_BY_SVC','ITEMTIMESTAMP' ,'CREATEDDATE','UPC','GTIN','EAN','PARTNUMBER','ISBN') THEN
+                 v_hdr_upd := v_hdr_upd +1;
+                 v_upd_hdr_bdy := v_upd_hdr_bdy ||v_columns_tab(I).u_column_NAME||q'{ = '}'||v_columns_tab(I).u_column_value||q'{',}';
               ELSE   
                   v_item_attribute_id :=  Get_item_attribute_id(V_COLUMNS_TAB(I).u_column_name);
-                  IF VALUE_DOES_EXISTS(i_ITEMINFOID,v_item_attribute_id) > 0 THEN
-                     V_UPD_ST_SET := q'{ UPDATE item_info_detail SET ITEM_ATTRIBUTE_VALUE  = '}'||V_COLUMNS_TAB(I).u_column_value||q'{' WHERE iteminfoid = }'||v_iteminfoid ;
-                     V_UPD_ST_AND  :=' AND ITEM_ATTRIBUTE_ID = '||v_item_attribute_id;
-                     V_UPD_ST_SET := V_UPD_ST_SET||V_UPD_ST_AND;                   
+                  IF VALUE_DOES_EXISTS(i_iteminfoid,v_item_attribute_id) > 0 THEN
+                     v_upd_st_set := q'{ UPDATE item_info_detail SET ITEM_ATTRIBUTE_VALUE  = '}'||V_COLUMNS_TAB(I).u_column_value||q'{' WHERE iteminfoid = }'||v_iteminfoid ;
+                     v_upd_st_and  :=' AND ITEM_ATTRIBUTE_ID = '||v_item_attribute_id;
+                     v_upd_st_set := v_upd_st_set||v_upd_st_and;                   
                      EXECUTE IMMEDIATE V_UPD_ST_SET;
                       if I_rowAuditUID is not null then
-                       AUDITING.createColumnTracking(i_rowAuditUID,V_COLUMNS_TAB(I).u_column_name,V_COLUMNS_TAB(I).u_old_column_value,V_COLUMNS_TAB(I).u_column_value);
+                       AUDITING.createColumnTracking(i_rowAuditUID,v_columns_tab(I).u_column_name,v_columns_tab(I).u_old_column_value,v_columns_tab(I).u_column_value);
                      end if;  
                   ELSE 
                   item_detail_tab((item_detail_tab.count+1)).ITEM_ATTRIBUTE_ID := v_item_attribute_id;
-                  item_detail_tab((item_detail_tab.count)).ITEMINFOID := i_ITEMINFOID ;
-                  item_detail_tab((item_detail_tab.count)).item_attribute_value := V_COLUMNS_TAB(I).u_column_value;
+                  item_detail_tab((item_detail_tab.count)).ITEMINFOID := i_iteminfoid ;
+                  item_detail_tab((item_detail_tab.count)).item_attribute_value := v_columns_tab(I).u_column_value;
                 --  DBMS_OUTPUT.PUT_LINE('V_ITEMINFOID = '||V_ITEMINFOID);
                   END IF;  
               END IF;     
           END LOOP;
-          IF V_HDR_UPD > 0 THEN
+          IF v_hdr_upd > 0 THEN
   
-             V_UPD_HDR_BDY := SUBSTR(V_UPD_HDR_BDY,1,LENGTH(V_UPD_HDR_BDY)-1);
-             V_UPD_HEADER := 'UPDATE ITEM_INFO_MASTER SET '||V_UPD_HDR_BDY||' WHERE iteminfoid =  '||v_iteminfoid;
-            -- DBMS_OUTPUT.PUT_LINE(V_UPD_HEADER); 
-           EXECUTE IMMEDIATE V_UPD_HEADER;
+             v_upd_hdr_bdy := SUBSTR(v_upd_hdr_bdy,1,LENGTH(v_upd_hdr_bdy)-1);
+             v_upd_header := 'UPDATE ITEM_INFO_MASTER SET '||v_upd_hdr_bdy||' WHERE iteminfoid =  '||v_iteminfoid;
+            -- DBMS_OUTPUT.PUT_LINE(v_upd_header); 
+           EXECUTE IMMEDIATE v_upd_header;
           END IF;
     
  
-END UPDATE_ITEM_INFO_DETAIL; 
+END update_item_info_detail; 
 
 PROCEDURE ITEM_INFO_CREATE_ORIG
 AS
