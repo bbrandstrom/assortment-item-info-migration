@@ -452,7 +452,7 @@ END LOOP;
     v_columns := q'{(}'||SUBSTR(v_COLUMNS,1,LENGTH(V_COLUMNS)-1)||q'{)}'; 
     V_VALUES := q'{(}'||SUBSTR(v_values,1,LENGTH(V_VALUES)-1)||q'{)}'; --REMOVE THE LAST COMMA AND PUT () ON
     
-    sql_text_org := q'{ INSERT INTO ITEM_INFO_ORIG_12102015 }' ; 
+    sql_text_org := q'{ INSERT INTO ITEM_INFO_ORIG }' ; 
     sql_text_org := sql_text_org ||v_columns||' values '||v_values;
     execute IMMEDIATE sql_text_org;
  
