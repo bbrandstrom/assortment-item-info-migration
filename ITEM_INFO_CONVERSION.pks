@@ -36,7 +36,7 @@ PROCEDURE ITEM_INFO_CREATE_ORIG;
 
      TYPE V_rec_type IS TABLE OF item_info%ROWTYPE INDEX BY BINARY_INTEGER;
      item_info_tab      v_rec_type;
-     item_info_tab_null v_rec_type;
+ 
      
      TYPE V_item_master IS TABLE OF item_info_master%ROWTYPE INDEX BY BINARY_INTEGER;
 	   item_master_tab v_item_master;

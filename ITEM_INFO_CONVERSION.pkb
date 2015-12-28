@@ -41,7 +41,7 @@ SELECT LOCALTIMESTAMP INTO V_START_TIME FROM DUAL;
           ITEM_INFO_UTILITIES.Create_Item_Validation_Stmt;         
          
          
-           item_info_tab.delete;
+           item_info_tab.DELETE;
            item_master_tab.DELETE;
 		   item_detail_tab.DELETE;              
        
@@ -110,20 +110,20 @@ SELECT LOCALTIMESTAMP INTO V_START_TIME FROM DUAL;
  
  
  -- try to free any memory by clearing PL/SQL table in memory
-   item_info_tab := item_info_tab_null;
+   item_info_tab.DELETE;
    item_detail_tab.DELETE;
    item_master_tab.DELETE;
    dbms_session.free_unused_user_memory ;
 EXCEPTION 
    WHEN NO_INSERT THEN
       DBMS_OUTPUT.PUT_LINE('NO_INSERT ERROR');
-      item_info_tab := item_info_tab_null;
+      item_info_tab.DELETE;
       dbms_session.free_unused_user_memory ;
       RAISE;
    WHEN OTHERS THEN
       dbms_output.put_line('error in main proc of conversion');
       DBMS_OUTPUT.PUT_LINE('OTHERES ERROR '|| SQLERRM);
-      item_info_tab := item_info_tab_null;
+      item_info_tab.DELETE;
       dbms_session.free_unused_user_memory ;
       RAISE;
 END ITEM_INFO_CONVERSION ;
@@ -306,8 +306,7 @@ BEGIN
      V_POS2      := (INSTR(v_columns,'=',v_pos1)); 
 
      v_length_to_pull   :=  V_POS2 - V_POS1      ;
-     v_columns_tab(index_cnt).u_column_name  := trim(SUBSTR(v_columns,v_pos1,v_length_to_pull));
-     
+     v_columns_tab(index_cnt).u_column_name  := TRIM(REPLACE(REPLACE(SUBSTR(v_columns,v_pos1,v_length_to_pull),chr(13),''),chr(10),''));
      v_comma_pos := instr(v_columns,',',v_comma_pos+1);
 
      IF v_comma_pos = 0 THEN
@@ -351,6 +350,7 @@ BEGIN
                   END IF;  
               END IF;     
           END LOOP;
+		    create_item_info_child;     -- write the new values to the detail table
           IF v_hdr_upd > 0 THEN
   
              v_upd_hdr_bdy := SUBSTR(v_upd_hdr_bdy,1,LENGTH(v_upd_hdr_bdy)-1);
